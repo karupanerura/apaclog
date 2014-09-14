@@ -7,5 +7,6 @@ build/
 cmake_install.cmake
 xcuserdata
 examples/dump
+examples/render
 libapaclog.a
 */*.dSYM/

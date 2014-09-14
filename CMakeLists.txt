@@ -9,5 +9,8 @@ INCLUDE_DIRECTORIES(include)
 
 ADD_LIBRARY(apaclog STATIC lib/parser.c lib/renderer.c)
 
-ADD_EXECUTABLE(examples/dump examples/dump.c)
-TARGET_LINK_LIBRARIES(examples/dump apaclog)
+ADD_EXECUTABLE(examples/dump   examples/dump.c)
+ADD_EXECUTABLE(examples/render examples/render.c)
+
+TARGET_LINK_LIBRARIES(examples/dump   apaclog)
+TARGET_LINK_LIBRARIES(examples/render apaclog)
