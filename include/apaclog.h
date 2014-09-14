@@ -3,9 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define APACLOG_PERCENT_STR        "%"
-#define APACLOG_PERCENT_STR_LENGTH 1
-
 enum apaclog_format_type {
   APACLOG_TOKEN_RAW_STRING,               // raw string.
   APACLOG_TOKEN_REMOTE_ADDR,              // %a

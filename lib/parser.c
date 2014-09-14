@@ -79,8 +79,8 @@ struct apaclog_format *apaclog_parse_format (const char *src) {
         switch (*p) {
           case '%':
             curr->type   = APACLOG_TOKEN_RAW_STRING;
-            curr->str    = APACLOG_PERCENT_STR;
-            curr->strlen = APACLOG_PERCENT_STR_LENGTH;
+            curr->str    = "%";
+            curr->strlen = 1;
             break;
           case 'a':
             curr->type = APACLOG_TOKEN_REMOTE_ADDR;
