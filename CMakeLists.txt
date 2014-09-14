@@ -11,6 +11,8 @@ ADD_LIBRARY(apaclog STATIC lib/parser.c lib/renderer.c)
 
 ADD_EXECUTABLE(examples/dump   examples/dump.c)
 ADD_EXECUTABLE(examples/render examples/render.c)
+ADD_EXECUTABLE(examples/modify examples/modify.c)
 
 TARGET_LINK_LIBRARIES(examples/dump   apaclog)
 TARGET_LINK_LIBRARIES(examples/render apaclog)
+TARGET_LINK_LIBRARIES(examples/modify apaclog)

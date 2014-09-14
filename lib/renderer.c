@@ -11,7 +11,7 @@ void apaclog_dump_format (FILE *out, struct apaclog_format *format) {
   struct apaclog_format_token *token = format->token;
   while (token != NULL) {
     fprintf(out, "    [%d]\n", i);
-    fprintf(out, "      id:%d\n", token->type);
+    fprintf(out, "      type_id:%d\n", token->type);
     fprintf(out, "      strlen:%d\n", token->strlen);
     if (token->str != NULL) {
       fprintf(out, "      str:");
@@ -125,6 +125,9 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
         break;
       case APACLOG_TOKEN_BYTES_SENT:
         fprintf(out, "%u", info->bytes_sent);
+        break;
+      case APACLOG_TOKEN_USER_DEFINED:
+        (*format->modifier->renderer)(token, info, out);
         break;
     }
     token = token->next;

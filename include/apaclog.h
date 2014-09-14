@@ -29,19 +29,8 @@ enum apaclog_format_type {
   APACLOG_TOKEN_SERVER_NAME,              // %v
   APACLOG_TOKEN_CONNECTION_STATUS,        // %X
   APACLOG_TOKEN_BYTES_RECEIVED,           // %I
-  APACLOG_TOKEN_BYTES_SENT                // %O
-};
-
-struct apaclog_format_token {
-  struct apaclog_format_token *next;
-  enum apaclog_format_type type;
-  char *str;
-  unsigned int strlen;
-};
-
-struct apaclog_format {
-  struct apaclog_format_token *token;
-  const char *src;
+  APACLOG_TOKEN_BYTES_SENT,               // %O
+  APACLOG_TOKEN_USER_DEFINED              // user defined token.
 };
 
 // for %X(CONNECTION_STATUS)
@@ -57,42 +46,64 @@ struct apaclog_info {
   //   TODO: cookie
   //   TODO: request_header
   //   TODO: request_date
-  const char         *remote_addr;
-  const unsigned int  remote_addr_len;
-  const char         *filename;
-  const unsigned int  filename_len;
-  const char         *remote_host;
-  const unsigned int  remote_host_len;
-  const unsigned int  minor_version;
-  const char         *request_method;
-  const unsigned int  request_method_len;
-  const unsigned int  server_port;
-  const unsigned int  process_id;
-  const char         *query_string;
-  const unsigned int  query_string_len;
-  const char         *remote_user;
-  const unsigned int  remote_user_len;
-  const char         *path_info;
-  const unsigned int  path_info_len;
-  const char         *server_name;
-  const unsigned int  server_name_len;
-  const unsigned int  bytes_received;
+  char         *remote_addr;
+  unsigned int  remote_addr_len;
+  char         *filename;
+  unsigned int  filename_len;
+  char         *remote_host;
+  unsigned int  remote_host_len;
+  unsigned int  minor_version;
+  char         *request_method;
+  unsigned int  request_method_len;
+  unsigned int  server_port;
+  unsigned int  process_id;
+  char         *query_string;
+  unsigned int  query_string_len;
+  char         *remote_user;
+  unsigned int  remote_user_len;
+  char         *path_info;
+  unsigned int  path_info_len;
+  char         *server_name;
+  unsigned int  server_name_len;
+  unsigned int  bytes_received;
   // RESPONSE:
   //   TODO: response_header
-  const unsigned int  bytes_response;
-  const unsigned long request_time_usec;
-  const unsigned int  response_status;
-  const unsigned long response_time_usec;
-  const enum apaclog_connection_status connection_status;
-  const unsigned int  bytes_sent;
+  unsigned int  bytes_response;
+  unsigned long request_time_usec;
+  unsigned int  response_status;
+  unsigned long response_time_usec;
+  enum apaclog_connection_status connection_status;
+  unsigned int  bytes_sent;
+  void         *extra;
+};
+
+struct apaclog_format_token {
+  struct apaclog_format_token *next;
+  enum apaclog_format_type type;
+  char *str;
+  unsigned int strlen;
+  void *extra;
+};
+
+struct apaclog_modifier {
+  void *(*non_quoted_format_parser)(const char type);
+  void *(*quoted_format_parser)(const char type);
+  void  (*renderer)(struct apaclog_format_token *token, struct apaclog_info *info, FILE *out);
+};
+
+struct apaclog_format {
+  struct apaclog_format_token *token;
+  struct apaclog_modifier     *modifier;
+  const char *src;
 };
 
 struct apaclog_format *apaclog_parse_format (const char *src);
+struct apaclog_format *apaclog_parse_format_custom (const char *src, struct apaclog_modifier *modifier);
 void apaclog_dump_format (FILE *out, struct apaclog_format *format);
 void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apaclog_info *info);
 
 inline void apaclog_fnputs (const char *str, const unsigned int length, FILE *out) {
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     fputc(str[i], out);
   }
 }
@@ -101,13 +112,85 @@ inline void apaclog_token_fputs (struct apaclog_format_token *token, FILE *out) 
   apaclog_fnputs(token->str, token->strlen, out);
 }
 
+inline struct apaclog_modifier *apaclog_new_modifier() {
+  struct apaclog_modifier *modifier = (struct apaclog_modifier *)malloc(sizeof(struct apaclog_modifier));
+  modifier->non_quoted_format_parser = NULL;
+  modifier->quoted_format_parser     = NULL;
+  modifier->renderer                 = NULL;
+  return modifier;
+}
+
+// FIXME: fix me!!!!!!!!!!!!!!!!!!!!!!!!
+inline struct apaclog_info *apaclog_new_info() {
+  struct apaclog_info *info = (struct apaclog_info *)malloc(sizeof(struct apaclog_info));
+  info->remote_addr         = NULL;
+  info->remote_addr_len     = 0;
+  info->filename            = NULL;
+  info->filename_len        = 0;
+  info->remote_host         = NULL;
+  info->remote_host_len     = 0;
+  info->minor_version       = 0;
+  info->request_method      = NULL;
+  info->request_method_len  = 0;
+  info->server_port         = 0;
+  info->process_id          = 0;
+  info->query_string        = NULL;
+  info->query_string_len    = 0;
+  info->remote_user         = NULL;
+  info->remote_user_len     = 0;
+  info->path_info           = NULL;
+  info->path_info_len       = 0;
+  info->server_name         = NULL;
+  info->server_name_len     = 0;
+  info->bytes_received      = 0;
+  info->bytes_response      = 0;
+  info->request_time_usec   = 0;
+  info->response_status     = 0;
+  info->response_time_usec  = 0;
+  info->bytes_sent          = 0;
+  info->extra               = NULL;
+  return info;
+}
+
+inline void apaclog_free_info(struct apaclog_info *info) {
+  if (info->extra != NULL) {
+    free(info->extra);
+  }
+  free(info);
+}
+
+inline struct apaclog_format_token *apaclog_new_format_token() {
+  struct apaclog_format_token *token = (struct apaclog_format_token *)malloc(sizeof(struct apaclog_format_token));
+  token->next   = NULL;
+  token->str    = NULL;
+  token->strlen = 0;
+  token->extra  = NULL;
+  return token;
+}
+
+inline struct apaclog_format_token *apaclog_new_next_format_token(struct apaclog_format_token *curr) {
+  struct apaclog_format_token *next = apaclog_new_format_token();
+  curr->next = next;
+  return next;
+}
+
+inline void apaclog_free_modifier (struct apaclog_modifier *modifier) {
+  if (modifier != NULL) {
+    free(modifier);
+  }
+}
+
 inline void apaclog_free_format (struct apaclog_format *format) {
   struct apaclog_format_token *token = format->token;
   while (token != NULL) {
     struct apaclog_format_token *next = token->next;
+    if (token->extra != NULL) {
+      free(token->extra);
+    }
     free(token);
     token = next;
   }
+  apaclog_free_modifier(format->modifier);
   free(format);
 }
 
