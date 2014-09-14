@@ -129,4 +129,5 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
     }
     token = token->next;
   }
+  fputc('\n', out);
 }
