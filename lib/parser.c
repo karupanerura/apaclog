@@ -1,12 +1,25 @@
 #include "apaclog.h"
 #include <stdlib.h>
 
+inline struct apaclog_format_token *apaclog_new_format_token() {
+  struct apaclog_format_token *token = (struct apaclog_format_token *)malloc(sizeof(struct apaclog_format_token));
+  token->next   = NULL;
+  token->str    = NULL;
+  token->strlen = 0;
+  return token;
+}
+
+inline struct apaclog_format_token *apaclog_new_next_format_token(struct apaclog_format_token *curr) {
+  struct apaclog_format_token *next = apaclog_new_format_token();
+  curr->next = next;
+  return next;
+}
+
 // TODO: care case of malloc failed.
 struct apaclog_format *apaclog_parse_format (const char *src) {
   struct apaclog_format *format = (struct apaclog_format *)malloc(sizeof(struct apaclog_format));
   format->src   = src;
-  format->token = (struct apaclog_format_token *)malloc(sizeof(struct apaclog_format_token));
-  format->token->next = NULL;
+  format->token = apaclog_new_format_token();
 
   char *p = (char *)src;
   struct apaclog_format_token *curr = format->token;
@@ -144,9 +157,7 @@ struct apaclog_format *apaclog_parse_format (const char *src) {
       curr->strlen = p - curr->str;
     }
     last = curr;
-    curr = (struct apaclog_format_token *) malloc(sizeof(struct apaclog_format_token));
-    curr->next = NULL;
-    last->next = curr;
+    curr = apaclog_new_next_format_token(curr);
   }
   free(last->next);
   last->next = NULL;
