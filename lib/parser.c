@@ -9,7 +9,6 @@ struct apaclog_format *apaclog_parse_format (const char *src) {
   return apaclog_parse_format_custom(src, NULL);
 }
 
-// TODO: care case of malloc failed.
 struct apaclog_format *apaclog_parse_format_custom (const char *src, struct apaclog_modifier *modifier) {
   struct apaclog_format *format = apaclog_new_format(src, modifier);
 
