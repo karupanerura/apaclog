@@ -1,10 +1,18 @@
 #include "apaclog.h"
+#include <stdio.h>
+#include <time.h>
 
 int main (void) {
   const char *src = "%h - %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-agent}i\"";
   struct apaclog_format *format = apaclog_parse_format(src);
   {
+    time_t    epoch;
+    struct tm date;
+    time(&epoch);
+    localtime_r(&epoch, &date);
+
     struct apaclog_info info = {
+      .request_date       = &date,
       .remote_host        = "127.0.0.1",
       .remote_host_len    = 9,
       .remote_user        = "anon",
@@ -22,7 +30,13 @@ int main (void) {
     apaclog_render_file(stdout, format, &info);
   }
   {
+    time_t    epoch;
+    struct tm date;
+    time(&epoch);
+    localtime_r(&epoch, &date);
+
     struct apaclog_info info = {
+      .request_date       = &date,
       .remote_host        = "192.168.0.1",
       .remote_host_len    = 11,
       .remote_user        = "-",

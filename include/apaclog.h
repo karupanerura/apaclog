@@ -2,6 +2,9 @@
 #define apaclog_h
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
+#define APACLOG_RENDERER_MAX_BUFFER_SIZE 255
 
 enum apaclog_format_type {
   APACLOG_TOKEN_RAW_STRING,               // raw string.
@@ -46,7 +49,7 @@ struct apaclog_info {
   // REQUEST:
   //   TODO: cookie
   //   TODO: request_header
-  //   TODO: request_date
+  struct tm    *request_date;
   char         *remote_addr;
   unsigned int  remote_addr_len;
   char         *filename;
@@ -125,6 +128,7 @@ inline void *apaclog_malloc(size_t sz) {
 // FIXME: fix me!!!!!!!!!!!!!!!!!!!!!!!!
 inline struct apaclog_info *apaclog_new_info() {
   struct apaclog_info *info = (struct apaclog_info *)apaclog_malloc(sizeof(struct apaclog_info));
+  info->request_date        = NULL;
   info->remote_addr         = NULL;
   info->remote_addr_len     = 0;
   info->filename            = NULL;

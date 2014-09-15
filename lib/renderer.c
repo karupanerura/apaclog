@@ -1,6 +1,13 @@
 #include "apaclog.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <time.h>
+
+void apaclog_render_env(char *buf, struct apaclog_format_token *token);
+void apaclog_render_strftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr);
+void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr);
 
 void apaclog_dump_format (FILE *out, struct apaclog_format *format) {
   fprintf(out, "dump_apaclog_format:\n");
@@ -25,6 +32,8 @@ void apaclog_dump_format (FILE *out, struct apaclog_format *format) {
 }
 
 void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apaclog_info *info) {
+  static char buf[APACLOG_RENDERER_MAX_BUFFER_SIZE];
+
   struct apaclog_format_token *token = format->token;
   while (token != NULL) {
     switch (token->type) {
@@ -52,8 +61,8 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
         fprintf(out, "%lu", info->request_time_usec);
         break;
       case APACLOG_TOKEN_ENV:
-        // TODO
-        fputc('-', out);
+        apaclog_render_env(buf, token);
+        fputs(buf, out);
         break;
       case APACLOG_TOKEN_FILENAME:
         apaclog_fnputs(info->filename, info->filename_len, out);
@@ -98,12 +107,22 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
         fprintf(out, "%u", info->response_status);
         break;
       case APACLOG_TOKEN_REQUEST_DATE_CLF:
-        // TODO
-        fputc('-', out);
+        if (info->request_date != NULL) {
+          apaclog_render_clftime(buf, token, info->request_date);
+          fputs(buf, out);
+        }
+        else {
+          fputc('-', out);
+        }
         break;
       case APACLOG_TOKEN_REQUEST_DATE_STRFTIME:
-        // TODO
-        fputc('-', out);
+        if (info->request_date != NULL) {
+          apaclog_render_strftime(buf, token, info->request_date);
+          fputs(buf, out);
+        }
+        else {
+          fputc('-', out);
+        }
         break;
       case APACLOG_TOKEN_RESPONSE_TIME_SEC:
         fprintf(out, "%Lf", ((long double)info->request_time_usec) / 1000000.0);
@@ -143,4 +162,55 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
     token = token->next;
   }
   fputc('\n', out);
+}
+
+void apaclog_render_env(char *buf, struct apaclog_format_token *token) {
+  static char name[APACLOG_RENDERER_MAX_BUFFER_SIZE];
+  static char *value;
+
+  // set name
+  strncpy(name, token->str, token->strlen);
+  name[token->strlen] = '\0';
+
+  // set value
+  value = getenv(name);
+  strcpy(buf, value);
+}
+
+void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr) {
+  const static char month2str[12][4] = {
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  };
+  const long gmtoff_abs = labs(timeptr->tm_gmtoff);
+
+  snprintf(buf, APACLOG_RENDERER_MAX_BUFFER_SIZE,
+    "[%02d/%s/%04d:%02d:%02d:%02d %c%02ld%02ld]",
+    timeptr->tm_mday,
+    month2str[timeptr->tm_mon],
+    1900 + timeptr->tm_year,
+    timeptr->tm_hour,
+    timeptr->tm_min,
+    timeptr->tm_sec,
+    timeptr->tm_gmtoff > 0 ? '+' : '-',
+    gmtoff_abs / 3600,
+    (gmtoff_abs % 3600) / 60
+  );
+}
+
+void apaclog_render_strftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr) {
+  static char format[APACLOG_RENDERER_MAX_BUFFER_SIZE];
+  strncpy(format, token->str, token->strlen);
+  format[token->strlen] = '\0';
+  strftime(buf, APACLOG_RENDERER_MAX_BUFFER_SIZE, format, timeptr);
 }
