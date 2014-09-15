@@ -93,6 +93,7 @@ struct apaclog_modifier {
   void *(*non_quoted_format_parser)(const char type);
   void *(*quoted_format_parser)(const char type);
   void  (*renderer)(struct apaclog_format_token *token, struct apaclog_info *info, FILE *out);
+  void *extra;
 };
 
 struct apaclog_format {
@@ -185,6 +186,7 @@ inline struct apaclog_modifier *apaclog_new_modifier() {
   modifier->non_quoted_format_parser = NULL;
   modifier->quoted_format_parser     = NULL;
   modifier->renderer                 = NULL;
+  modifier->extra                    = NULL;
   return modifier;
 }
 
