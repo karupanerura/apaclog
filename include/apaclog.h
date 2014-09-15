@@ -20,6 +20,7 @@ enum apaclog_format_type {
   APACLOG_TOKEN_SERVER_PORT,              // %p
   APACLOG_TOKEN_PROCESS_ID,               // %P
   APACLOG_TOKEN_QUERY_STRING,             // %q
+  APACLOG_TOKEN_REQUEST_FIRST_LINE,       // %r
   APACLOG_TOKEN_RESPONSE_STATUS,          // %s
   APACLOG_TOKEN_REQUEST_DATE_CLF,         // %t
   APACLOG_TOKEN_REQUEST_DATE_STRFTIME,    // %{format}t

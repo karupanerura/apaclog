@@ -135,33 +135,7 @@ struct apaclog_format *apaclog_parse_format_custom (const char *src, struct apac
               curr->type = APACLOG_TOKEN_QUERY_STRING;
               break;
             case 'r':
-              // alias for "%m %U?%q %H"
-              // %m
-              curr->type = APACLOG_TOKEN_REQUEST_METHOD;
-              curr = apaclog_new_next_format_token(curr);
-              // space
-              curr->type   = APACLOG_TOKEN_RAW_STRING;
-              curr->str    = " ";
-              curr->strlen = 1;
-              // %U
-              curr = apaclog_new_next_format_token(curr);
-              curr->type  = APACLOG_TOKEN_PATH_INFO;
-              // ?
-              curr = apaclog_new_next_format_token(curr);
-              curr->type   = APACLOG_TOKEN_RAW_STRING;
-              curr->str    = "?";
-              curr->strlen = 1;
-              // %q
-              curr = apaclog_new_next_format_token(curr);
-              curr->type  = APACLOG_TOKEN_QUERY_STRING;
-              // space
-              curr = apaclog_new_next_format_token(curr);
-              curr->type   = APACLOG_TOKEN_RAW_STRING;
-              curr->str    = " ";
-              curr->strlen = 1;
-              // %H
-              curr = apaclog_new_next_format_token(curr);
-              curr->type  = APACLOG_TOKEN_REQUEST_PROTOCOL;
+              curr->type = APACLOG_TOKEN_REQUEST_FIRST_LINE;
               break;
             case 's':
               curr->type = APACLOG_TOKEN_RESPONSE_STATUS;

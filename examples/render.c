@@ -23,19 +23,19 @@ int main (void) {
   }
   {
     struct apaclog_info info = {
-      .remote_host        = "127.0.0.1",
-      .remote_host_len    = 8,
-      .remote_user        = NULL,
-      .remote_user_len    = 0,
-      .request_method     = "GET",
-      .request_method_len = 3,
-      .path_info          = "/path/to/foo",
+      .remote_host        = "192.168.0.1",
+      .remote_host_len    = 11,
+      .remote_user        = "-",
+      .remote_user_len    = 1,
+      .request_method     = "POST",
+      .request_method_len = 4,
+      .path_info          = "/path/to/bar",
       .path_info_len      = 12,
-      .query_string       = "foo=bar&debug=1",
-      .query_string_len   = 15,
-      .minor_version      = 0,
-      .response_status    = 200,
-      .bytes_response     = 12345
+      .query_string       = NULL,
+      .query_string_len   = 0,
+      .minor_version      = 1,
+      .response_status    = 404,
+      .bytes_response     = 0
     };
     apaclog_render_file(stdout, format, &info);
   }

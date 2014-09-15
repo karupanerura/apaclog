@@ -84,6 +84,16 @@ void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apacl
       case APACLOG_TOKEN_QUERY_STRING:
         apaclog_fnputs(info->query_string, info->query_string_len, out);
         break;
+      case APACLOG_TOKEN_REQUEST_FIRST_LINE:
+        apaclog_fnputs(info->request_method, info->request_method_len, out);
+        fputc(' ', out);
+        apaclog_fnputs(info->path_info, info->path_info_len, out);
+        if (info->query_string != NULL && info->query_string_len > 0) {
+          fputc('?', out);
+          apaclog_fnputs(info->query_string, info->query_string_len, out);
+        }
+        fprintf(out, " HTTP/1.%u", info->minor_version);
+        break;
       case APACLOG_TOKEN_RESPONSE_STATUS:
         fprintf(out, "%u", info->response_status);
         break;
