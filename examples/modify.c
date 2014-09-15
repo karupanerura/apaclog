@@ -24,7 +24,7 @@ struct my_token *new_my_token () {
   return (struct my_token *)malloc(sizeof(struct my_token));
 }
 
-void *parse_quoted_format (const char type) {
+void *parse_quoted_format (struct apaclog_modifier *modifier, const char type) {
   struct my_token *token = NULL;
   switch (type) {
     case 'i':
@@ -35,7 +35,7 @@ void *parse_quoted_format (const char type) {
   return token;
 }
 
-void *parse_non_quoted_format (const char type) {
+void *parse_non_quoted_format (struct apaclog_modifier *modifier, const char type) {
   struct my_token *token = NULL;
   switch (type) {
     case 't': // can override
@@ -50,27 +50,54 @@ void *parse_non_quoted_format (const char type) {
   return token;
 }
 
-void original_token_renderer (struct apaclog_format_token *token, struct apaclog_info *info, FILE *out) {
+int original_token_renderer (struct apaclog_modifier *modifier, char *p, const size_t size, struct apaclog_format_token *token, struct apaclog_info *info) {
   struct my_token   *my_token = (struct my_token  *)token->extra;
   struct my_header  *headers  = (struct my_header *)info->extra;
+
+  static const char *time = "[30/Sep/2014:12:34:56 +0900]";
+
+  int length = 0;
   switch (my_token->type) {
     case TOKEN_REQUEST_HEADER:
       for (int i = 0; i < HEADERS_SIZE; i++) {
         if (strlen(headers[i].name) == token->strlen) {
           if (strncmp(headers[i].name, token->str, token->strlen) == 0) {
-            fputs(headers[i].value, out);
+            length = strlen(headers[i].value);
+
+            // size over?
+            if (length > size) {
+              return -1;
+            }
+
+            strcpy(p, headers[i].value);
             break;
           }
         }
       }
       break;
     case TOKEN_TIME:
-      fputs("2014-09-09T00:11:22+0900", out);
+      length = strlen(time);
+
+      // size over?
+      if (length > size) {
+        return -1;
+      }
+
+      strcpy(p, time);
       break;
     case TOKEN_DOUBLE_QUOTE:
-      fputc('"', out);
+      length = 1;
+
+      // size over?
+      if (length > size) {
+        return -1;
+      }
+
+      *p = '"';
       break;
   }
+
+  return length;
 }
 
 int main (void) {
@@ -84,7 +111,7 @@ int main (void) {
   struct apaclog_format *format = apaclog_parse_format_custom(src, modifier);
   {
     // set my headers
-    struct my_header *headers = (struct my_header *)malloc(sizeof(struct my_header) * HEADERS_SIZE);
+    struct my_header headers[3];
     headers[0].name  = "Referer";
     headers[0].value = "http://www.google.co.jp/";
     headers[1].name  = "User-agent";
@@ -93,30 +120,26 @@ int main (void) {
     headers[2].value = "foo-bar.net";
 
     // set request info
-    struct apaclog_info *info = apaclog_new_info();
-    info->remote_host        = "127.0.0.1";
-    info->remote_host_len    = 9;
-    info->remote_user        = "anon";
-    info->remote_user_len    = 4;
-    info->request_method     = "GET";
-    info->request_method_len = 3;
-    info->path_info          = "/path/to/foo";
-    info->path_info_len      = 12;
-    info->query_string       = "foo=bar&debug=1";
-    info->query_string_len   = 15;
-    info->minor_version      = 0;
-    info->response_status    = 200;
-    info->bytes_response     = 12345;
-    info->extra              = headers;
+    struct apaclog_info info;
+    apaclog_info_init(&info);
+    info.remote_addr          = "127.0.0.1";
+    info.remote_addr_len      = 9;
+    info.remote_user          = "anon";
+    info.remote_user_len      = 4;
+    info.request_method       = "GET";
+    info.request_method_len   = 3;
+    info.path_info            = "/path/to/foo";
+    info.path_info_len        = 12;
+    info.query_string         = "foo=bar&debug=1";
+    info.query_string_len     = 15;
+    info.request_protocol     = "HTTP/1.0";
+    info.request_protocol_len = 8;
+    info.response_status      = 200;
+    info.bytes_response       = 12345;
+    info.extra                = headers;
 
     // render
-    apaclog_render_file(stdout, format, info);
-
-    // free (with info->extra)
-    apaclog_free_info(info);
-    // or free extra manualy
-    // free(info->extra);
-    // info->extra = NULL;
+    apaclog_render_file(stdout, format, &info);
   };
 
   // free (with format->modifier)

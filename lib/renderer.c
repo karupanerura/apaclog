@@ -5,9 +5,13 @@
 #include <unistd.h>
 #include <time.h>
 
-void apaclog_render_env(char *buf, struct apaclog_format_token *token);
-void apaclog_render_strftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr);
-void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr);
+#define APACLOG_RENDERER_MAX_BUFFER_SIZE  1023
+#define APACLOG_RENDERER_MAX_ENVNAME_SIZE 63
+#define APACLOG_RENDERER_MAX_STRFMT_SIZE  63
+
+int apaclog_render_env(char *p, const size_t size, struct apaclog_format_token *token);
+int apaclog_render_clftime(char *p, const size_t size, struct apaclog_format_token *token, struct tm *timeptr);
+int apaclog_render_strftime(char *p, const size_t size, struct apaclog_format_token *token, struct tm *timeptr);
 
 void apaclog_dump_format (FILE *out, struct apaclog_format *format) {
   fprintf(out, "dump_apaclog_format:\n");
@@ -31,153 +35,217 @@ void apaclog_dump_format (FILE *out, struct apaclog_format *format) {
   fprintf(out, "  ]\n");
 }
 
-void apaclog_render_file (FILE *out, struct apaclog_format *format, struct apaclog_info *info) {
+int apaclog_render_file (FILE *out, struct apaclog_format *format, struct apaclog_info *info) {
   static char buf[APACLOG_RENDERER_MAX_BUFFER_SIZE];
 
+  // render to buffer
+  char *ret = apaclog_render_buf(buf, APACLOG_RENDERER_MAX_BUFFER_SIZE, format, info);
+
+  // is failed?
+  if (ret == NULL) {
+    return -1;
+  }
+
+  // render to file
+  int len = fputs(buf, out);
+  fflush(out);
+  return len;
+}
+
+char *apaclog_render_buf (char *buf, const size_t max, struct apaclog_format *format, struct apaclog_info *info) {
+  int diff;
+  char *p = buf;
+  size_t size = (size_t)max;
   struct apaclog_format_token *token = format->token;
+
+#define PUTC2BUF(c) {  \
+    if (size == 0) {   \
+      return NULL;     \
+    }                  \
+    *p = c;            \
+    p++;               \
+    size--;            \
+  }
+
+#define PUSH2BUF(str, strlen) {    \
+    if ((strlen) > size) {         \
+      return NULL;                 \
+    }                              \
+    strncpy(p, (str), (strlen));   \
+    p += (strlen);                 \
+    size -= (strlen);              \
+  }
+
+#define SPRINTF2BUF(fmt, __VA_ARGS__) {            \
+    diff = snprintf(p, size, fmt, __VA_ARGS__);  \
+    if (diff < 0) {                                \
+      return NULL;                                 \
+    }                                              \
+    p += diff;                                     \
+    size -= diff;                                  \
+  }
+
   while (token != NULL) {
     switch (token->type) {
       case APACLOG_TOKEN_RAW_STRING:
-        apaclog_token_fputs(token, out);
+        PUSH2BUF(token->str, token->strlen);
         break;
       case APACLOG_TOKEN_REMOTE_ADDR:
-        apaclog_fnputs(info->remote_addr, info->remote_addr_len, out);
+        PUSH2BUF(info->remote_addr, info->remote_addr_len);
         break;
       case APACLOG_TOKEN_BYTES_RESPONSE:
-        fprintf(out, "%u", info->bytes_response);
+        SPRINTF2BUF("%u", info->bytes_response);
         break;
       case APACLOG_TOKEN_BYTES_RESPONSE_CLF:
         if (info->bytes_response) {
-          fprintf(out, "%u", info->bytes_response);
+          SPRINTF2BUF("%u", info->bytes_response);
         } else {
-          fputc('-', out);
+          PUTC2BUF('-');
         }
-        break;
-      case APACLOG_TOKEN_COOKIE:
-        // TODO
-        fputc('-', out);
         break;
       case APACLOG_TOKEN_REQUEST_TIME_USEC:
-        fprintf(out, "%lu", info->request_time_usec);
+        SPRINTF2BUF("%lu", info->request_time_usec);
         break;
       case APACLOG_TOKEN_ENV:
-        apaclog_render_env(buf, token);
-        fputs(buf, out);
+        diff = apaclog_render_env(p, size, token);
+        if (diff < 0) {
+          return NULL;
+        }
+        p += diff;
+        size -= diff;
         break;
       case APACLOG_TOKEN_FILENAME:
-        apaclog_fnputs(info->filename, info->filename_len, out);
+        PUSH2BUF(info->filename, info->filename_len);
         break;
       case APACLOG_TOKEN_REMOTE_HOST:
-        apaclog_fnputs(info->remote_host, info->remote_host_len, out);
+        PUSH2BUF(info->remote_addr, info->remote_addr_len);
         break;
       case APACLOG_TOKEN_REQUEST_PROTOCOL:
-        fprintf(out, "HTTP/1.%u", info->minor_version);
-        break;
-      case APACLOG_TOKEN_REQUEST_HEADER:
-        // TODO
-        fputc('-', out);
+        PUSH2BUF(info->request_protocol, info->request_protocol_len);
         break;
       case APACLOG_TOKEN_REQUEST_METHOD:
-        apaclog_fnputs(info->request_method, info->request_method_len, out);
-        break;
-      case APACLOG_TOKEN_RESPONSE_HEADER:
-        // TODO
-        fputc('-', out);
+        PUSH2BUF(info->request_method, info->request_method_len);
         break;
       case APACLOG_TOKEN_SERVER_PORT:
-        fprintf(out, "%u", info->server_port);
+        SPRINTF2BUF("%u", info->server_port);
         break;
       case APACLOG_TOKEN_PROCESS_ID:
-        fprintf(out, "%u", getpid());
+        SPRINTF2BUF("%u", getpid());
         break;
       case APACLOG_TOKEN_QUERY_STRING:
-        apaclog_fnputs(info->query_string, info->query_string_len, out);
+        PUSH2BUF(info->query_string, info->query_string_len);
         break;
       case APACLOG_TOKEN_REQUEST_FIRST_LINE:
-        apaclog_fnputs(info->request_method, info->request_method_len, out);
-        fputc(' ', out);
-        apaclog_fnputs(info->path_info, info->path_info_len, out);
+        PUSH2BUF(info->request_method, info->request_method_len);
+        PUTC2BUF(' ');
+        PUSH2BUF(info->path_info, info->path_info_len);
         if (info->query_string != NULL && info->query_string_len > 0) {
-          fputc('?', out);
-          apaclog_fnputs(info->query_string, info->query_string_len, out);
+          PUTC2BUF('?');
+          PUSH2BUF(info->query_string, info->query_string_len);
         }
-        fprintf(out, " HTTP/1.%u", info->minor_version);
+        PUTC2BUF(' ');
+        PUSH2BUF(info->request_protocol, info->request_protocol_len);
         break;
       case APACLOG_TOKEN_RESPONSE_STATUS:
-        fprintf(out, "%u", info->response_status);
+        SPRINTF2BUF("%u", info->response_status);
         break;
       case APACLOG_TOKEN_REQUEST_DATE_CLF:
         if (info->request_date != NULL) {
-          apaclog_render_clftime(buf, token, info->request_date);
-          fputs(buf, out);
+          diff = apaclog_render_clftime(p, size, token, info->request_date);
+          if (diff < 0) {
+            return NULL;
+          }
+          p += diff;
+          size -= diff;
         }
         else {
-          fputc('-', out);
+          PUTC2BUF('-');
         }
         break;
       case APACLOG_TOKEN_REQUEST_DATE_STRFTIME:
         if (info->request_date != NULL) {
-          apaclog_render_strftime(buf, token, info->request_date);
-          fputs(buf, out);
+          diff = apaclog_render_strftime(p, size, token, info->request_date);
+          if (diff < 0) {
+            return NULL;
+          }
+          p += diff;
+          size -= diff;
         }
         else {
-          fputc('-', out);
+          PUTC2BUF('-');
         }
         break;
       case APACLOG_TOKEN_RESPONSE_TIME_SEC:
-        fprintf(out, "%Lf", ((long double)info->request_time_usec) / 1000000.0);
+        SPRINTF2BUF("%Lf", ((long double)info->request_time_usec) / 1000000.0);
         break;
       case APACLOG_TOKEN_REMOTE_USER:
-        apaclog_fnputs(info->remote_user, info->remote_user_len, out);
+        PUSH2BUF(info->remote_user, info->remote_user_len);
         break;
       case APACLOG_TOKEN_PATH_INFO:
-        apaclog_fnputs(info->path_info, info->path_info_len, out);
+        PUSH2BUF(info->path_info, info->path_info_len);
         break;
       case APACLOG_TOKEN_SERVER_NAME:
-        apaclog_fnputs(info->server_name, info->server_name_len, out);
+        PUSH2BUF(info->server_name, info->server_name_len);
         break;
       case APACLOG_TOKEN_CONNECTION_STATUS:
         switch (info->connection_status) {
           case APACLOG_STATUS_ABORTED:
-            fputc('X', out);
+            PUTC2BUF('X');
             break;
           case APACLOG_STATUS_KEEP_ALIVE:
-            fputc('+', out);
+            PUTC2BUF('+');
             break;
           case APACLOG_STATUS_CLOSED:
-            fputc('-', out);
+            PUTC2BUF('-');
             break;
         }
         break;
       case APACLOG_TOKEN_BYTES_RECEIVED:
-        fprintf(out, "%u", info->bytes_received);
+        SPRINTF2BUF("%u", info->bytes_received);
         break;
       case APACLOG_TOKEN_BYTES_SENT:
-        fprintf(out, "%u", info->bytes_sent);
+        SPRINTF2BUF("%u", info->bytes_sent);
         break;
       case APACLOG_TOKEN_USER_DEFINED:
-        (*format->modifier->renderer)(token, info, out);
+        diff = (*format->modifier->renderer)(format->modifier, p, size, token, info);
+        if (diff < 0) {
+          return NULL;
+        }
+        p += diff;
+        size -= diff;
         break;
     }
     token = token->next;
   }
-  fputc('\n', out);
+  PUTC2BUF('\n');
+  PUTC2BUF('\0');
+
+  return buf;
 }
 
-void apaclog_render_env(char *buf, struct apaclog_format_token *token) {
-  static char name[APACLOG_RENDERER_MAX_BUFFER_SIZE];
+int apaclog_render_env(char *p, const size_t size, struct apaclog_format_token *token) {
+  static char name[APACLOG_RENDERER_MAX_ENVNAME_SIZE];
   static char *value;
+  static size_t length;
 
   // set name
   strncpy(name, token->str, token->strlen);
   name[token->strlen] = '\0';
 
   // set value
-  value = getenv(name);
-  strcpy(buf, value);
+  value  = getenv(name);
+  length = strlen(value);
+
+  // size over?
+  if (size < length) {
+    return -1;
+  }
+  strcpy(p, value);
+
+  return size - length;
 }
 
-void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr) {
+int apaclog_render_clftime(char *p, const size_t size, struct apaclog_format_token *token, struct tm *timeptr) {
   const static char month2str[12][4] = {
     "Jan",
     "Feb",
@@ -194,7 +262,7 @@ void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struc
   };
   const long gmtoff_abs = labs(timeptr->tm_gmtoff);
 
-  snprintf(buf, APACLOG_RENDERER_MAX_BUFFER_SIZE,
+  return snprintf(p, size,
     "[%02d/%s/%04d:%02d:%02d:%02d %c%02ld%02ld]",
     timeptr->tm_mday,
     month2str[timeptr->tm_mon],
@@ -208,9 +276,11 @@ void apaclog_render_clftime(char *buf, struct apaclog_format_token *token, struc
   );
 }
 
-void apaclog_render_strftime(char *buf, struct apaclog_format_token *token, struct tm *timeptr) {
-  static char format[APACLOG_RENDERER_MAX_BUFFER_SIZE];
+int apaclog_render_strftime(char *p, const size_t size, struct apaclog_format_token *token, struct tm *timeptr) {
+  static char format[APACLOG_RENDERER_MAX_STRFMT_SIZE];
+  static size_t length;
   strncpy(format, token->str, token->strlen);
   format[token->strlen] = '\0';
-  strftime(buf, APACLOG_RENDERER_MAX_BUFFER_SIZE, format, timeptr);
+  length = strftime(p, size, format, timeptr);
+  return (length == 0) ? -1 : length;
 }

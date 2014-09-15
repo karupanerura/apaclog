@@ -69,7 +69,7 @@ char *_apaclog_capture_format(struct apaclog_format_token *token, char *p, struc
 const char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier) {
   // modify it?
   if (modifier != NULL && modifier->quoted_format_parser != NULL) {
-    void *extra = (*modifier->quoted_format_parser)(*p);
+    void *extra = (*modifier->quoted_format_parser)(modifier, *p);
     if (extra != NULL) {
       token->type  = APACLOG_TOKEN_USER_DEFINED;
       token->extra = extra;
@@ -79,17 +79,8 @@ const char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, c
 
   // capture type
   switch (*p) {
-    case 'C':
-      token->type = APACLOG_TOKEN_COOKIE;
-      break;
     case 'e':
       token->type = APACLOG_TOKEN_ENV;
-      break;
-    case 'i':
-      token->type = APACLOG_TOKEN_REQUEST_HEADER;
-      break;
-    case 'o':
-      token->type = APACLOG_TOKEN_RESPONSE_HEADER;
       break;
     case 't':
       token->type = APACLOG_TOKEN_REQUEST_DATE_STRFTIME;
@@ -104,7 +95,7 @@ const char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, c
 const char *_apaclog_capture_non_quoted_format (struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier) {
   // modify it?
   if (modifier != NULL && modifier->non_quoted_format_parser != NULL) {
-    void *extra = (*modifier->non_quoted_format_parser)(*p);
+    void *extra = (*modifier->non_quoted_format_parser)(modifier, *p);
     if (extra != NULL) {
       token->type  = APACLOG_TOKEN_USER_DEFINED;
       token->extra = extra;
