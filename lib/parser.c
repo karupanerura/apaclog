@@ -1,13 +1,6 @@
 #include "apaclog.h"
 #include <stdlib.h>
 
-inline struct apaclog_format *apaclog_new_format(const char *src, struct apaclog_modifier *modifier) {
-  struct apaclog_format *format = (struct apaclog_format *)malloc(sizeof(struct apaclog_format));
-  format->src      = src;
-  format->token    = apaclog_new_format_token();
-  format->modifier = modifier;
-  return format;
-}
 
 struct apaclog_format *apaclog_parse_format (const char *src) {
   return apaclog_parse_format_custom(src, NULL);

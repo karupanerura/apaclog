@@ -113,17 +113,18 @@ inline void apaclog_token_fputs (struct apaclog_format_token *token, FILE *out) 
   apaclog_fnputs(token->str, token->strlen, out);
 }
 
-inline struct apaclog_modifier *apaclog_new_modifier() {
-  struct apaclog_modifier *modifier = (struct apaclog_modifier *)malloc(sizeof(struct apaclog_modifier));
-  modifier->non_quoted_format_parser = NULL;
-  modifier->quoted_format_parser     = NULL;
-  modifier->renderer                 = NULL;
-  return modifier;
+inline void *apaclog_malloc(size_t sz) {
+  void *p = malloc(sz);
+  if (p == NULL) {
+    perror("no memory");
+    abort();
+  }
+  return p;
 }
 
 // FIXME: fix me!!!!!!!!!!!!!!!!!!!!!!!!
 inline struct apaclog_info *apaclog_new_info() {
-  struct apaclog_info *info = (struct apaclog_info *)malloc(sizeof(struct apaclog_info));
+  struct apaclog_info *info = (struct apaclog_info *)apaclog_malloc(sizeof(struct apaclog_info));
   info->remote_addr         = NULL;
   info->remote_addr_len     = 0;
   info->filename            = NULL;
@@ -161,7 +162,7 @@ inline void apaclog_free_info(struct apaclog_info *info) {
 }
 
 inline struct apaclog_format_token *apaclog_new_format_token() {
-  struct apaclog_format_token *token = (struct apaclog_format_token *)malloc(sizeof(struct apaclog_format_token));
+  struct apaclog_format_token *token = (struct apaclog_format_token *)apaclog_malloc(sizeof(struct apaclog_format_token));
   token->next   = NULL;
   token->str    = NULL;
   token->strlen = 0;
@@ -175,10 +176,26 @@ inline struct apaclog_format_token *apaclog_new_next_format_token(struct apaclog
   return next;
 }
 
+inline struct apaclog_modifier *apaclog_new_modifier() {
+  struct apaclog_modifier *modifier = (struct apaclog_modifier *)apaclog_malloc(sizeof(struct apaclog_modifier));
+  modifier->non_quoted_format_parser = NULL;
+  modifier->quoted_format_parser     = NULL;
+  modifier->renderer                 = NULL;
+  return modifier;
+}
+
 inline void apaclog_free_modifier (struct apaclog_modifier *modifier) {
   if (modifier != NULL) {
     free(modifier);
   }
+}
+
+inline struct apaclog_format *apaclog_new_format(const char *src, struct apaclog_modifier *modifier) {
+  struct apaclog_format *format = (struct apaclog_format *)apaclog_malloc(sizeof(struct apaclog_format));
+  format->src      = src;
+  format->token    = apaclog_new_format_token();
+  format->modifier = modifier;
+  return format;
 }
 
 inline void apaclog_free_format (struct apaclog_format *format) {
