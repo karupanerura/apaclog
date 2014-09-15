@@ -2,8 +2,8 @@
 #include <stdlib.h>
 
 char *_apaclog_capture_format (struct apaclog_format_token *token, char *p, struct apaclog_modifier *modifier);
-char *_apaclog_capture_quoted_format (struct apaclog_format_token *token, char *p, struct apaclog_modifier *modifier);
-char *_apaclog_capture_non_quoted_format (struct apaclog_format_token *token, char *p, struct apaclog_modifier *modifier);
+const char *_apaclog_capture_quoted_format (struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier);
+const char *_apaclog_capture_non_quoted_format (struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier);
 
 struct apaclog_format *apaclog_parse_format (const char *src) {
   return apaclog_parse_format_custom(src, NULL);
@@ -58,15 +58,15 @@ char *_apaclog_capture_format(struct apaclog_format_token *token, char *p, struc
       p++;
     }
     token->strlen = p++ - token->str;
-    return _apaclog_capture_quoted_format(token, p, modifier);
+    return (char *)_apaclog_capture_quoted_format(token, p, modifier);
   }
   else {
     // non quoted format
-    return _apaclog_capture_non_quoted_format(token, p, modifier);
+    return (char *)_apaclog_capture_non_quoted_format(token, p, modifier);
   }
 }
 
-char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, char *p, struct apaclog_modifier *modifier) {
+const char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier) {
   // modify it?
   if (modifier != NULL && modifier->quoted_format_parser != NULL) {
     void *extra = (*modifier->quoted_format_parser)(*p);
@@ -101,7 +101,7 @@ char *_apaclog_capture_quoted_format(struct apaclog_format_token *token, char *p
   return p;
 }
 
-char *_apaclog_capture_non_quoted_format (struct apaclog_format_token *token, char *p, struct apaclog_modifier *modifier) {
+const char *_apaclog_capture_non_quoted_format (struct apaclog_format_token *token, const char *p, struct apaclog_modifier *modifier) {
   // modify it?
   if (modifier != NULL && modifier->non_quoted_format_parser != NULL) {
     void *extra = (*modifier->non_quoted_format_parser)(*p);
