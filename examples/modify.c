@@ -111,7 +111,7 @@ int main (void) {
   struct apaclog_format *format = apaclog_parse_format_custom(src, modifier);
   {
     // set my headers
-    struct my_header headers[3];
+    struct my_header headers[HEADERS_SIZE];
     headers[0].name  = "Referer";
     headers[0].value = "http://www.google.co.jp/";
     headers[1].name  = "User-agent";
